@@ -1,0 +1,88 @@
+# Mattermost Installer generated fail2ban jail.local
+# https://github.com/hwcltjn/mattermost-installer
+
+# Fail2Ban configuration file.
+# This file was composed for Debian systems from the original one
+# provided now under /usr/share/doc/fail2ban/examples/jail.conf
+# for additional examples.
+# Comments: use '#' for comment lines and ';' for inline comments
+
+[DEFAULT]
+
+ignoreip = 127.0.0.1/8
+
+findtime = 600
+bantime  = 900
+maxretry = 5
+
+backend = auto
+usedns = warn
+destemail = root@localhost
+sendername = Fail2Ban
+
+#
+# ACTIONS
+#
+banaction = iptables-multiport
+mta = sendmail
+protocol = tcp
+chain = INPUT
+
+# The simplest action to take: ban only
+action_ = %(banaction)s[name=%(__name__)s, port="%(port)s", protocol="%(protocol)s", chain="%(chain)s"]
+
+action_mw = %(banaction)s[name=%(__name__)s, port="%(port)s", protocol="%(protocol)s", chain="%(chain)s"]
+              %(mta)s-whois[name=%(__name__)s, dest="%(destemail)s", protocol="%(protocol)s", chain="%(chain)s", sendername="%(sendername)s"]
+
+action_mwl = %(banaction)s[name=%(__name__)s, port="%(port)s", protocol="%(protocol)s", chain="%(chain)s"]
+               %(mta)s-whois-lines[name=%(__name__)s, dest="%(destemail)s", logpath=%(logpath)s, chain="%(chain)s", sendername="%(sendername)s"]
+
+action = %(action_)s
+
+#
+# JAILS
+#
+
+[ssh]
+enabled  = true
+port     = ssh
+filter   = sshd
+logpath  = /var/log/auth.log
+findtime = 21600
+bantime  = 172800
+maxretry = 3
+
+[ssh-ddos]
+enabled  = true
+port     = ssh
+filter   = sshd-ddos
+logpath  = /var/log/auth.log
+findtime = 21600
+bantime  = 172800
+maxretry = 5
+
+[nginx-dos]
+enabled  = true
+port     = http,https
+filter   = nginx-dos
+logpath  = /var/log/nginx/*access*.log
+findtime = 60
+bantime  = 86400
+maxretry = 1600
+
+# Probably not very effective
+[nginx-botsearch]
+enabled  = true
+port     = http,https
+logpath  = %(nginx_error_log)s
+findtime = 600
+bantime  = 43200
+maxretry = 2
+
+[mattermost]
+enabled  = true
+filter   = mattermost-passlockout
+logpath  = /opt/mattermost/logs/mattermost.log
+findtime = 300
+bantime  = 600
+maxretry = 5
