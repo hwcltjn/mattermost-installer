@@ -5,9 +5,9 @@ A bash script that automatically installs Mattermost Server
 ## Features
 Proper README coming soon - in the meantime:
 
-* Installs latest version of Mattermost server using MySQL
-* Installs NGINX as a reverse proxy
-* Configures a Let's Encrypt SSL certificate with an A+ SSL labs rating in NGINX
+* Installs the latest version of Mattermost server and MySQL
+* Installs and configures NGINX as a reverse proxy
+* Configures a Let's Encrypt SSL certificate with an A+ SSL Labs rating
 * Configures UFW as a firewall and opens ports for SSH, HTTP and HTTPS
 * Installs and configures fail2ban for SSHD, NGINX and Mattermost
 
