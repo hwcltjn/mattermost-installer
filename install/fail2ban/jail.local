@@ -61,6 +61,15 @@ findtime = 21600
 bantime  = 172800
 maxretry = 5
 
+[mattermost]
+enabled  = true
+filter   = mattermost-passlockout
+logpath  = /opt/mattermost/logs/mattermost.log
+action   = ufw
+findtime = 300
+bantime  = 600
+maxretry = 5
+
 [nginx-dos]
 enabled  = true
 port     = http,https
@@ -70,7 +79,7 @@ findtime = 60
 bantime  = 86400
 maxretry = 1600
 
-# Probably not very effective
+# These 2 probably aren't very effective
 [nginx-botsearch]
 enabled  = true
 port     = http,https
@@ -79,10 +88,11 @@ findtime = 600
 bantime  = 43200
 maxretry = 2
 
-[mattermost]
+[nginx-noscript]
 enabled  = true
-filter   = mattermost-passlockout
-logpath  = /opt/mattermost/logs/mattermost.log
-findtime = 300
-bantime  = 600
-maxretry = 5
+port     = http,https
+filter   = nginx-noscript
+logpath  = /var/log/nginx/access.log
+findtime = 600
+bantime  = 43200
+maxretry = 6
