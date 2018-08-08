@@ -52,15 +52,6 @@ findtime = 21600
 bantime  = 172800
 maxretry = 3
 
-[ssh-ddos]
-enabled  = true
-port     = ssh
-filter   = sshd-ddos
-logpath  = /var/log/auth.log
-findtime = 21600
-bantime  = 172800
-maxretry = 5
-
 [mattermost]
 enabled  = true
 filter   = mattermost-passlockout
@@ -79,7 +70,7 @@ findtime = 60
 bantime  = 86400
 maxretry = 1600
 
-# These 2 probably aren't very effective
+# These 2 probably aren't very effective but can't hurt
 [nginx-botsearch]
 enabled  = true
 port     = http,https
