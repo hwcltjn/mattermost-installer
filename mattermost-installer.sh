@@ -165,23 +165,20 @@ if [ "$?" != "0" ]; then
 fi
 
 # ---- Create MySQL Database and User ---- #
-if [ -f /root/.my.cnf ]; then
-  mysql -e "CREATE DATABASE ${mm_dbname};"
-  mysql -e "CREATE USER '${mm_dbuser}'@'localhost' IDENTIFIED BY '${mm_dbpass}';"
-  mysql -e "GRANT ALL PRIVILEGES ON ${mm_dbname}.* TO '${mm_dbuser}'@'localhost';"
-else
-  echo ""
-  echo "------------------------------------------"
-  echo "  Please enter root user MySQL password:"
-  echo "------------------------------------------"
-  read rootpasswd
-  mysql -uroot -p${rootpasswd} -e "CREATE DATABASE ${mm_dbname};"
-    if [ "$?" != "0" ]; then
-      echo "Error: Could not connect to local MySQL - wrong password? Exiting."
-      exit 1
-    fi
-  mysql -uroot -p${rootpasswd} -e "CREATE USER '${mm_dbuser}'@'localhost' IDENTIFIED BY '${mm_dbpass}';"
-  mysql -uroot -p${rootpasswd} -e "GRANT ALL PRIVILEGES ON ${mm_dbname}.* TO '${mm_dbuser}'@'localhost';"
+mysql -e "CREATE DATABASE ${mm_dbname};"
+if [ "$?" != "0" ]; then
+  echo "Error: Could not create MySQL database. Exiting."
+  exit 1
+fi
+mysql -e "CREATE USER '${mm_dbuser}'@'localhost' IDENTIFIED BY '${mm_dbpass}';"
+if [ "$?" != "0" ]; then
+  echo "Error: Could not create MySQL user. Exiting."
+  exit 1
+fi
+mysql -e "GRANT ALL PRIVILEGES ON ${mm_dbname}.* TO '${mm_dbuser}'@'localhost';"
+if [ "$?" != "0" ]; then
+  echo "Error: Could not grant all MySQL privileges. Exiting."
+  exit 1
 fi
 
 # ---- Download and Install Mattermost ---- #
@@ -263,26 +260,21 @@ if [ "$configure_fw" = "true" ]; then
 fi
 
 # ---- Start Services ---- #
-echo "STARTING NGINX"
 systemctl start nginx
 sleep 2
-echo "STARTING MATTERMOST"
 systemctl start mattermost
 sleep 2
 
-
 if [ "$configure_f2b" = "true" ]; then
-  echo "STARTING F2B"
   systemctl start fail2ban
   sleep 2
 fi
 
-echo "CRON CONFIG"
 # ---- Let's Encrypt Cron ---- #
 touch /var/log/mattermost-ssl.log
 wget https://raw.githubusercontent.com/hwcltjn/mattermost-installer/master/install/mattermost-ssl/mattermost-ssl.sh -O /usr/local/bin/mattermost-ssl.sh
 chmod +x /usr/local/bin/mattermost-ssl.sh
-echo "ECHOING CRON"
+sleep 2
 (crontab -l ; echo "@monthly /usr/local/bin/mattermost-ssl.sh")| crontab -
 
 # ---- Print Summary ---- #
