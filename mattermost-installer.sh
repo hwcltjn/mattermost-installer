@@ -212,7 +212,7 @@ chown -R mattermost:mattermost /opt/mattermost
 chmod -R g+w /opt/mattermost
 
 # ---- Configure NGINX + LE SSL ---- #
-service nginx stop
+systemctl stop nginx
 sleep 2
 
 echo "Configuring Let's Encrypt SSL"
@@ -245,7 +245,8 @@ fi
 if [ "$configure_f2b" = "true" ]; then
   apt-get install fail2ban -yy
   sleep 2
-  service fail2ban stop
+  systemctl stop fail2ban
+  sleep 2
   wget https://raw.githubusercontent.com/hwcltjn/mattermost-installer/master/install/fail2ban/jail.local -O /etc/fail2ban/jail.local
   wget https://raw.githubusercontent.com/hwcltjn/mattermost-installer/master/install/fail2ban/filter_d/mattermost-passlockout.conf -O /etc/fail2ban/filter.d/mattermost-passlockout.conf
   wget https://raw.githubusercontent.com/hwcltjn/mattermost-installer/master/install/fail2ban/filter_d/nginx-dos.conf -O /etc/fail2ban/filter.d/nginx-dos.conf
@@ -262,17 +263,26 @@ if [ "$configure_fw" = "true" ]; then
 fi
 
 # ---- Start Services ---- #
-service nginx start
-service mattermost start
+echo "STARTING NGINX"
+systemctl start nginx
+sleep 2
+echo "STARTING MATTERMOST"
+systemctl start mattermost
+sleep 2
+
 
 if [ "$configure_f2b" = "true" ]; then
-  service fail2ban start
+  echo "STARTING F2B"
+  systemctl start fail2ban
+  sleep 2
 fi
 
+echo "CRON CONFIG"
 # ---- Let's Encrypt Cron ---- #
 touch /var/log/mattermost-ssl.log
 wget https://raw.githubusercontent.com/hwcltjn/mattermost-installer/master/install/mattermost-ssl/mattermost-ssl.sh -O /usr/local/bin/mattermost-ssl.sh
 chmod +x /usr/local/bin/mattermost-ssl.sh
+echo "ECHOING CRON"
 (crontab -l ; echo "@monthly /usr/local/bin/mattermost-ssl.sh")| crontab -
 
 # ---- Print Summary ---- #
