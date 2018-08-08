@@ -8,6 +8,9 @@
 # Settings #
 ############
 
+# ---- Unattended-upgrades Settings ---- #
+configure_uu="true"  # Set to false if you do not want this script to install and configure unattended-upgrades.
+
 # ---- Firewall Settings ---- #
 configure_fw="true"  # Set to false if you do not want this script to configure your firewall.
 ssh_port="22"        # Change if you have setup a custom SSH port.
@@ -124,21 +127,42 @@ if [ "$fqdn_ip" != "$host_ip" ]; then
   exit 1
 fi
 
+# ---- Update OS and Install Stuff ---- #
 apt-get update
 if [ "$?" != "0" ]; then
   echo "Error: Could not update apt. Exiting."
   exit 1
 fi
 
-# ---- Install Stuff ---- #
-apt-get install mysql-server nginx jq git -yy
+apt-get install software-properties-common -yy
+if [ "$?" != "0" ]; then
+  echo "Error: Could not install software-properties-common. Exiting."
+  exit 1
+fi
+
+add-apt-repository ppa:certbot/certbot -yy
+if [ "$?" != "0" ]; then
+  echo "Error: Could not add Certbot repo. Exiting."
+  exit 1
+fi
+
+apt-get update
+if [ "$?" != "0" ]; then
+  echo "Error: Could not update apt. Exiting."
+  exit 1
+fi
+
+apt-get upgrade -yy
+if [ "$?" != "0" ]; then
+  echo "Error: Could not upgrade OS apt. Waiting 10 seconds."
+  sleep 10
+fi
+
+apt-get install mariadb-server nginx jq certbot -yy
 if [ "$?" != "0" ]; then
   echo "Error: Could not install required packages. Exiting."
   exit 1
 fi
-
-# ---- Clone Let's Encrypt ---- #
-git clone https://github.com/certbot/certbot.git /opt/letsencrypt/
 
 # ---- Create MySQL Database and User ---- #
 if [ -f /root/.my.cnf ]; then
@@ -152,6 +176,10 @@ else
   echo "------------------------------------------"
   read rootpasswd
   mysql -uroot -p${rootpasswd} -e "CREATE DATABASE ${mm_dbname};"
+    if [ "$?" != "0" ]; then
+      echo "Error: Could not connect to local MySQL - wrong password? Exiting."
+      exit 1
+    fi
   mysql -uroot -p${rootpasswd} -e "CREATE USER '${mm_dbuser}'@'localhost' IDENTIFIED BY '${mm_dbpass}';"
   mysql -uroot -p${rootpasswd} -e "GRANT ALL PRIVILEGES ON ${mm_dbname}.* TO '${mm_dbuser}'@'localhost';"
 fi
@@ -190,9 +218,9 @@ sleep 2
 echo "Configuring Let's Encrypt SSL"
 
 if [ -z "$le_email" ]; then
-  /opt/letsencrypt/letsencrypt-auto certonly --standalone --agree-tos --register-unsafely-without-email -d $mm_fqdn
+  /usr/bin/certbot certonly --standalone --agree-tos --register-unsafely-without-email -d $mm_fqdn
 else
-  /opt/letsencrypt/letsencrypt-auto certonly --standalone --agree-tos --no-eff-email --email $le_email -d $mm_fqdn
+  /usr/bin/certbot certonly --standalone --agree-tos --no-eff-email --email $le_email -d $mm_fqdn
 fi
 
 mkdir /etc/nginx/ssl/
@@ -205,6 +233,13 @@ sed -i "s/mattermost.example.com/$mm_fqdn/" /etc/nginx/sites-available/mattermos
 
 rm /etc/nginx/sites-enabled/default
 ln -s /etc/nginx/sites-available/mattermost /etc/nginx/sites-enabled/mattermost
+
+# ---- Configure unattended-upgrades ---- #
+if [ "$configure_uu" = "true" ]; then
+  apt-get install unattended-upgrades -yy
+  wget https://raw.githubusercontent.com/hwcltjn/mattermost-installer/master/install/unattended-upgrades/20auto-upgrades -O /etc/apt/apt.conf.d/20auto-upgrades -q
+  wget https://raw.githubusercontent.com/hwcltjn/mattermost-installer/master/install/unattended-upgrades/50unattended-upgrades -O /etc/apt/apt.conf.d/50unattended-upgrades -q
+fi
 
 # ---- Configure fail2ban ---- #
 if [ "$configure_f2b" = "true" ]; then
@@ -235,7 +270,10 @@ if [ "$configure_f2b" = "true" ]; then
 fi
 
 # ---- Let's Encrypt Cron ---- #
-(crontab -l ; echo "@monthly /opt/letsencrypt/letsencrypt-auto renew --nginx && service nginx reload")| crontab -
+touch /var/log/mattermost-ssl.log
+wget https://raw.githubusercontent.com/hwcltjn/mattermost-installer/master/install/mattermost-ssl/mattermost-ssl.sh -O /usr/local/bin/mattermost-ssl.sh
+chmod +x /usr/local/bin/mattermost-ssl.sh
+(crontab -l ; echo "@monthly /usr/local/bin/mattermost-ssl.sh")| crontab -
 
 # ---- Print Summary ---- #
 echo ""
