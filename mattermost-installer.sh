@@ -19,6 +19,7 @@ ssh_port="22"        # Change if you have setup a custom SSH port.
 configure_f2b="true" # Set to false if you do not want to install and configure fail2ban.
 
 # ---- Database Settings ---- #
+db_engine="mariadb" # Set to "mariadb" or "mysql"
 mm_dbname="mattermost"
 mm_dbuser="mmuser"
 mm_dbpass="$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 20)" # Generate Random Password
@@ -27,6 +28,14 @@ mm_dbpass="$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 20)" # Generate Rand
 ##################################################
 # End Settings - No need to edit below this line #
 ##################################################
+# ---- Exit Code Checks ----#
+exit_code_abort() {
+  if [ "$?" != "0" ]; then
+    echo "ERROR - $1"
+    echo "Exiting"
+    exit 1
+  fi
+}
 
 # ---- Pre-Flight Checks ----#
 # Check for root
@@ -39,6 +48,13 @@ fi
 apt_check=$(command -v apt-get)
 if [ -z "$apt_check" ]; then
   echo "ERROR: Only Debian based distro's are supported."
+  echo "Exiting."
+  exit 1
+fi
+
+# DB Engine
+if [[ "$db_engine" != "mariadb" && "$db_engine" != "mysql" ]]; then
+  echo "ERROR - db_engine can only be set to mariadb or mysql - please check and try again."
   echo "Exiting."
   exit 1
 fi
@@ -86,7 +102,11 @@ echo "   This script will install Mattermost Server"
 echo "   This installer is intended to be run on a FRESH server"
 echo ""
 echo "   This script will:"
-echo "     * Install Mattermost with MySQL"
+if [ "$db_engine" = "mariadb" ]; then
+  echo "     * Install Mattermost with MariaDB"
+elif [ "$db_engine" = "mysql" ]; then
+  echo "     * Install Mattermost with MySQL"
+fi
 echo "     * Install NGINX as a reverse proxy"
 echo "     * Configure an SSL certificate using Let's Encrypt"
 if [ "$configure_fw" = "true" ]; then
@@ -94,6 +114,9 @@ if [ "$configure_fw" = "true" ]; then
 fi
 if [ "$configure_f2b" = "true" ]; then
   echo "     * Install and configure fail2ban for SSHD, NGINX and MM"
+fi
+if [ "$configure_uu" = "true" ]; then
+  echo "     * Install and configure Unattended Upgrades for Ubuntu"
 fi
 echo ""
 echo ""
@@ -129,68 +152,46 @@ fi
 
 # ---- Update OS and Install Stuff ---- #
 apt-get update
-if [ "$?" != "0" ]; then
-  echo "Error: Could not update apt. Exiting."
-  exit 1
-fi
+  exit_code_abort "Could not update APT."
 
 apt-get install software-properties-common -yy
-if [ "$?" != "0" ]; then
-  echo "Error: Could not install software-properties-common. Exiting."
-  exit 1
-fi
+  exit_code_abort "Could not install software-properties-common."
 
 add-apt-repository ppa:certbot/certbot -yy
-if [ "$?" != "0" ]; then
-  echo "Error: Could not add Certbot repo. Exiting."
-  exit 1
-fi
+  exit_code_abort "Could not add Certbot repo."
 
 apt-get update
-if [ "$?" != "0" ]; then
-  echo "Error: Could not update apt. Exiting."
-  exit 1
-fi
+  exit_code_abort "Could not update APT."
 
 apt-get upgrade -yy
 if [ "$?" != "0" ]; then
-  echo "Error: Could not upgrade OS apt. Waiting 10 seconds."
+  echo "Error: Could not apt upgrade OS. Waiting 10 seconds."
   sleep 10
 fi
 
-apt-get install mariadb-server nginx jq certbot -yy
-if [ "$?" != "0" ]; then
-  echo "Error: Could not install required packages. Exiting."
-  exit 1
+if [ "$db_engine" = "mariadb" ]; then
+  apt-get install mariadb-server nginx jq certbot -yy
+    exit_code_abort "Could not install required packages."
+elif [ "$db_engine" = "mysql" ]; then
+  apt-get install mysql-server nginx jq certbot -yy
+    exit_code_abort "Could not install required packages."
 fi
 
 # ---- Create MySQL Database and User ---- #
 mysql -e "CREATE DATABASE ${mm_dbname};"
-if [ "$?" != "0" ]; then
-  echo "Error: Could not create MySQL database. Exiting."
-  exit 1
-fi
+  exit_code_abort "Could not create MySQL database."
 mysql -e "CREATE USER '${mm_dbuser}'@'localhost' IDENTIFIED BY '${mm_dbpass}';"
-if [ "$?" != "0" ]; then
-  echo "Error: Could not create MySQL user. Exiting."
-  exit 1
-fi
+  exit_code_abort "Could not create MySQL user."
 mysql -e "GRANT ALL PRIVILEGES ON ${mm_dbname}.* TO '${mm_dbuser}'@'localhost';"
-if [ "$?" != "0" ]; then
-  echo "Error: Could not grant all MySQL privileges. Exiting."
-  exit 1
-fi
+  exit_code_abort "Could not grant privileges."
 
 # ---- Download and Install Mattermost ---- #
 wget -q https://releases.mattermost.com/$mm_ver/mattermost-$mm_ver-linux-amd64.tar.gz # Enterprise
 tar -xzf mattermost-$mm_ver-linux-amd64.tar.gz # Enterprise
 # wget -q https://releases.mattermost.com/$mm_ver/mattermost-team-$mm_ver-linux-amd64.tar.gz # Team
 # tar -xzf mattermost-team-$mm_ver-linux-amd64.tar.gz # Team
-
-if [ "$?" != "0" ]; then
-  echo "Error: Could not extract Mattermost $mm_ver archive. Exiting."
-  exit 1
-fi
+  
+  exit_code_abort "Could not extract Mattermost $mm_ver archive."
 
 mv mattermost /opt
 mkdir /opt/mattermost/data
@@ -241,9 +242,9 @@ fi
 # ---- Configure fail2ban ---- #
 if [ "$configure_f2b" = "true" ]; then
   apt-get install fail2ban -yy
-  sleep 2
+  sleep 4
   systemctl stop fail2ban
-  sleep 2
+  sleep 3
   wget https://raw.githubusercontent.com/hwcltjn/mattermost-installer/master/install/fail2ban/jail.local -O /etc/fail2ban/jail.local
   wget https://raw.githubusercontent.com/hwcltjn/mattermost-installer/master/install/fail2ban/filter_d/mattermost-passlockout.conf -O /etc/fail2ban/filter.d/mattermost-passlockout.conf
   wget https://raw.githubusercontent.com/hwcltjn/mattermost-installer/master/install/fail2ban/filter_d/nginx-dos.conf -O /etc/fail2ban/filter.d/nginx-dos.conf
@@ -257,6 +258,7 @@ if [ "$configure_fw" = "true" ]; then
   ufw allow http
   ufw allow https
   ufw --force enable
+  sleep 2
 fi
 
 # ---- Start Services ---- #

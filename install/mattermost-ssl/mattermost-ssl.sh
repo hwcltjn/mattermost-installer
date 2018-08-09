@@ -15,7 +15,6 @@ if [ "$nginx_status" == "active" ]; then
 	service nginx stop	
 	if [ "$?" = "0" ]; then
   		echo "$(timestamp) - Info: NGINX service has been stopped." >> "$log"
-  		echo "$(timestamp) - Info: NGINX service has been stopped."
 	else
 		echo "$(timestamp) - Error: Could not stop NGINX. Exiting." >> "$log"
   		exit 1
@@ -24,7 +23,7 @@ if [ "$nginx_status" == "active" ]; then
 	sleep 3
 fi
 	
-/usr/bin/certbot renew --dry-run
+/usr/bin/certbot renew
 sleep 3
 
 service nginx start
