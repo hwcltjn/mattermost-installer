@@ -39,6 +39,7 @@ There are also options for you to manually set the database details you would li
 ## Wish List/Coming Soon:
 
 * Automatic updates for Matermost Server
+* Muliplte instances of Mattermost per server
 * Automatic backups of config file and database
 * Database hardening
 * Installation without SSL
