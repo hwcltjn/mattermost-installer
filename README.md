@@ -10,7 +10,7 @@ A bash script that automatically installs the latest version of Mattermost Serve
 * Configures a Let's Encrypt SSL certificate with an A+ SSL Labs rating (with automatic renewals!)
 * Configures UFW as a firewall and opens ports for SSH, HTTP and HTTPS
 * Installs and configures fail2ban for SSHD, NGINX and Mattermost
-* Install and configures Unattended Upgrades for the OS
+* Installs and configures Unattended Upgrades for the OS
 
 ## Usage
 
