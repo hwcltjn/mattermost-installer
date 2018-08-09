@@ -27,7 +27,7 @@ or
 
 #### Settings
 
-At the top of the script you can modify the following options:
+At the top of the script you can modify the following options:  
 ```configure_uu``` - to enable/disable configuration of Unattended Upgrades, default "true".  
 ```configure_fw``` - to enable/disable configuration of the firewall, default "true".  
 ```ssh_port``` - if you have setup a custom SSH port, the script will take this into consideration when setting up the firewall (it will not change your system's SSH port), default "true".  
