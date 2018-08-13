@@ -25,6 +25,9 @@ mm_dbuser="mmuser"
 mm_dbpass="$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 20)" # Generate Random Password
 # mm_dbpass="YourPassword"
 
+# ---- Edition Selection ---- #
+mm_edition="team" # Set to "enterprise" to download and install Enterprise edition.
+
 ##################################################
 # End Settings - No need to edit below this line #
 ##################################################
@@ -62,6 +65,13 @@ fi
 # MySQL DB
 if [ -z "$mm_dbname" ] || [ -z "$mm_dbpass" ] || [ -z "$mm_dbuser" ]; then
   echo "Error: MySQL database name, username, and/or password  missing. Exiting."
+  exit 1
+fi
+
+# Edition
+if [[ "$mm_edition" != "team" && "$mm_edition" != "enterprise" ]]; then
+  echo "ERROR - mm_edition can only be set to team or enterprise - please check and try again."
+  echo "Exiting."
   exit 1
 fi
 
@@ -186,12 +196,19 @@ mysql -e "GRANT ALL PRIVILEGES ON ${mm_dbname}.* TO '${mm_dbuser}'@'localhost';"
   exit_code_abort "Could not grant privileges."
 
 # ---- Download and Install Mattermost ---- #
-wget -q https://releases.mattermost.com/$mm_ver/mattermost-$mm_ver-linux-amd64.tar.gz # Enterprise
-tar -xzf mattermost-$mm_ver-linux-amd64.tar.gz # Enterprise
-# wget -q https://releases.mattermost.com/$mm_ver/mattermost-team-$mm_ver-linux-amd64.tar.gz # Team
-# tar -xzf mattermost-team-$mm_ver-linux-amd64.tar.gz # Team
+if [ "$mm_edition" = "enterprise" ]; then
+  wget -q https://releases.mattermost.com/$mm_ver/mattermost-$mm_ver-linux-amd64.tar.gz # Enterprise
+    exit_code_abort "Unable to download Mattermost Enterprise $mm_ver ."
   
-  exit_code_abort "Could not extract Mattermost $mm_ver archive."
+  tar -xzf mattermost-$mm_ver-linux-amd64.tar.gz
+    exit_code_abort "Could not extract Mattermost $mm_ver archive."
+elif [ "$mm_edition" = "team" ]; then
+  wget -q https://releases.mattermost.com/$mm_ver/mattermost-team-$mm_ver-linux-amd64.tar.gz # Team
+    exit_code_abort "Unable to download Mattermost Team $mm_ver ."
+
+  tar -xzf mattermost-team-$mm_ver-linux-amd64.tar.gz
+    exit_code_abort "Could not extract Mattermost $mm_ver archive."
+fi
 
 mv mattermost /opt
 mkdir /opt/mattermost/data
